@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<!-- <script src="./dist/littlejs.js"></script> -->
+<script src="littlejs.min.js"></script>
+<script>
+let vertScrollSpeed = .1;
+
+class Player extends EngineObject {
+	numDigits = 0;
+
+    constructor(pos)
+    {
+        super(pos, vec2(2), null, 0, RED);
+        this.setCollision(); // make object collide
+        this.renderOrder = 1; // render player on top
+        this.numDigits = 0;
+        this.damping = 0.7;
+    }
+
+    update()
+    {
+        // apply movement controls
+        const moveInput = keyDirection().clampLength(1).scale(.2);
+        this.velocity = this.velocity.add(moveInput);
+
+        // smoothly follow player with lerp
+        //cameraPos = cameraPos.lerp(this.pos, .1);
+        var lastCameraPos = cameraPos;
+
+        // only let the camera scroll up
+        // no going back
+        if (lastCameraPos.y <= this.pos.y) {
+        	cameraPos.y = cameraPos.lerp(this.pos, .1).y;
+        }
+        
+
+        if (mouseWasPressed(0) && this.numDigits > 0) {
+        	// shoot bullet
+            new Bullet(this.pos, mousePos.subtract(this.pos).normalize());
+        }
+    }
+}
+
+class Bullet extends EngineObject {
+	shootSound = new Sound([.7,,120,.02,.07,.06,,3.5,17,-9,,,,,,,,.59,.08,,99]); // Shoot 9
+	speed = 0;
+
+    constructor(pos, velocity)
+    {
+        super(pos, vec2(.2), 0, 0, WHITE);
+        this.setCollision(); // make object collide
+        this.renderOrder = 2;
+        this.velocity = velocity;
+
+        this.shootSound.play();
+    }
+
+    update()
+    {
+        
+    }
+
+    collideWithObject(object) {
+    	if (object instanceof Player) {
+    		return false;
+    	}
+    }
+}
+
+class PhysicsObject extends EngineObject
+{
+    constructor(pos, size)
+    {
+        super(pos, size); // set object position and size
+        this.setCollision(); // make object collide
+        this.mass = 0; // make object have static physics
+    }
+
+    update() {
+    	
+    }
+}
+
+class Box extends EngineObject
+{
+    constructor(pos, size, what, when, color)
+    {
+        super(pos, size, what, when, color); // set object position and size
+        this.setCollision(); // make object collide
+        this.mass = 0; // make object have static physics
+    }
+
+    update() {
+    	
+    }
+}
+
+class Digit extends EngineObject {
+	pickupSound = new Sound([1.5,,435,.03,.02,.22,1,4,,,323,.08,,,,,.03,.69,.03,,-1473]); // Pickup 2
+
+    constructor(pos)
+    {
+        super(pos, vec2(1), null, 0, BLUE);
+        this.setCollision(); // make object collide
+        this.renderOrder = 2;
+    }
+
+    update()
+    {
+       
+    }
+
+    collideWithObject(object) {
+    	if (object instanceof Player) {
+    		this.pickupSound.play();
+    		object.numDigits += 1;
+    		this.destroy();
+    	}	
+    }
+}
+
+class Frog extends EngineObject {
+	pickupSound = new Sound([2.5,.5,420,.02,.19,.27,1,1.3,3,-3,-100,.07,,.3,,,,.78,.21,,949]); // Powerup 12
+
+    constructor(pos)
+    {
+        super(pos, vec2(1), null, 0, GREEN);
+        this.setCollision(); // make object collide
+        this.renderOrder = 2;
+    }
+
+    update()
+    {
+        
+    }
+
+    collideWithObject(object) {
+    	if (object instanceof Player) {
+    		this.pickupSound.play();
+    		this.destroy();
+    	}	
+    }
+}
+
+class Portal extends EngineObject {
+	portalSound = new Sound([1.9,,594,.04,.5,.06,1,3.2,,2,,,,,,,,.74,.27,,663]); // Powerup 16
+
+    constructor(pos)
+    {
+        super(pos, vec2(3), null, 0, WHITE);
+        this.setCollision(); // make object collide
+        this.renderOrder = 2;
+    }
+
+    update()
+    {
+        
+    }
+
+    collideWithObject(object) {
+    	if (object instanceof Player) {
+    		this.portalSound.play();
+
+    		// reset game
+        	engineObjectsDestroy();
+        	gameInit();
+    	}
+    }
+}
+
+
+
+function gameInit() {
+	// setup example menu
+    /*let navigationIndex = 0;
+    const uiMenu = new UIObject(vec2(), vec2(0,0));
+    canvasClearColor = hsl(0,0,.8);*/
+
+    // example text
+    /*uiMenu.addChild(new UIText(vec2(-100,-120), vec2(450, 80),
+        'LittleJS UI\nSystem Demo'));*/
+
+	// setup level
+    canvasClearColor = hsl(.3,.2,.6);
+    this.player = new Player(vec2(19, 0));
+
+    // create walls
+    // setup level
+    const levelSize = vec2(38, 500);    // size of play area
+    cameraPos = levelSize.scale(.5);   // center camera in level
+    canvasFixedSize = vec2(1280, 720); // use a 720p fixed size canvas
+
+    // create objects
+    //paddle = new PhysicsObject(vec2(0,1), vec2(6,1)); // player
+
+    const w = levelSize.x, h = levelSize.y;
+    new PhysicsObject(vec2(-.5,250),  vec2(1,500)); // left wall
+    new PhysicsObject(vec2(w+.5,250), vec2(1,500)); // right wall
+    new PhysicsObject(vec2(w/2,0), vec2(100,1)); // bottom wall
+
+
+    // create collision objects
+    for (let i=300; i--;)
+    {
+        const size = vec2(rand(1,6),rand(1,6));
+        const pos = vec2(randInt(0+(size.x), levelSize.x-(size.x)), randInt(0, 500));
+        const color = hsl(.1,.5,rand(.2));
+        const o = new Box(pos, size, 0, 0, color);
+        o.setCollision(); // make object collide
+        o.mass = 0; // make object have static physics
+    }
+
+    // create digits
+    for (let i=50; i--;) {
+    	const pos = vec2(randInt(0+1, levelSize.x-1), randInt(50, 500));
+    	new Digit(pos);
+    }
+
+    // create frawgs
+    for (let i=50; i--;) {
+    	const pos = vec2(randInt(0+1, levelSize.x-1), randInt(50, 500));
+    	new Frog(pos);
+    }
+
+    // create portal to end level
+    new Portal(vec2(19, 500));
+
+    cameraPos.y = this.player.pos.y;
+}
+
+function gameUpdate() {
+	touchGamepadEnable = true;
+    if (isTouchDevice || isUsingGamepad)
+    {
+        if (isTouchDevice)
+        {
+            //debugText('Touch Gamepad Mode', vec2(0,5));
+
+            // touch input is routed to mouse
+            //debugPoint(mousePos, mouseIsDown(0) ? RED : YELLOW, 1);
+        }
+        else
+        {
+            //debugText('Gamepad Mode', vec2(0,5));
+            //debugText('Primary Gamepad: ' + gamepadPrimary, vec2(0,4));
+        }
+
+        // analog sticks
+        for (let i=2; i--;)
+        {
+            const stick = gamepadStick(i);
+            const pos = vec2(i?3:-3, 1);
+            //debugCircle(pos, 4, WHITE);
+            //debugLine(pos, pos.add(stick.scale(2)), GREEN);
+        }
+
+        // buttons
+        for (let i=16; i--;)
+        {
+            const pos = vec2(-7 + i%8*2, -3 - (i/8|0)*2);
+            //if (gamepadIsDown(i))
+                //debugCircle(pos, 2, RED, 0, 1);
+            //debugCircle(pos, 2, WHITE);
+            //debugText(i, pos);
+        }
+    }
+    else
+    {
+        //debugText('Mouse and Keyboard Mode', vec2(0,5));
+
+        // keyboard key (space bar)
+        //debugRect(vec2(), vec2(4), WHITE);
+        //if (keyIsDown('Space'))
+            //debugRect(vec2(), vec2(4), RED, 0, 0, 1);
+
+        // keyboard direction (arrow keys or WASD)
+        const inputDirection = keyDirection();
+        //debugLine(vec2(), inputDirection.scale(2), GREEN);
+
+        // mouse pos
+        //debugPoint(mousePos, mouseIsDown(0) ? RED : YELLOW, 1);
+
+        // mouse buttons
+        for (let i=3; i--;)
+        {
+            //const pos = vec2(-2 + i*2, -5);
+            //if (mouseIsDown(i))
+                //debugCircle(pos, 2, RED, 0, 1);
+            //debugCircle(pos, 2, WHITE);
+            //debugText(i, pos);
+        }
+    }
+}
+function gameUpdatePost() {}
+function gameRender() {}
+function gameRenderPost() {
+	//drawTextScreen('Hello World!', mainCanvasSize.scale(.5), 80);
+}
+
+engineInit(gameInit, gameUpdate, gameUpdatePost, gameRender, gameRenderPost);
+
+	
+</script>
