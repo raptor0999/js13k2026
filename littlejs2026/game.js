@@ -178,6 +178,7 @@ class Player extends EngineObject {
         this.numDigits = 0;
         this.damping = 0.7;
         this.colorsCollected = [];
+        this.colorPowerUsage = [];
         this.lastColorCollected = null;
         this.roundsMax = 6;
         this.roundsLoaded = 6;
@@ -202,10 +203,13 @@ class Player extends EngineObject {
         this.lastDirection = null;
 
         this.playerColor = BLACK;
+
+        this.currentAlterCamDistance = 7.5;
     }
 
     collectColor(color) {
         this.colorsCollected.push(color);
+        this.colorPowerUsage.push(0);
         this.lastColorCollected = color;
     }
 
@@ -213,13 +217,15 @@ class Player extends EngineObject {
         this.health -= damage;
         this.damageTimer.set();
 
+        this.hitSound.play();
+
         if(this.health < 1) {
             this.destroy();
+            player = null;
+            stop_music();
             gameEnded = true;
             lose = true;
-        } else {
-            this.hitSound.play();
-        }        
+        } 
     }
 
     doDamage(damage, object) {
@@ -233,7 +239,7 @@ class Player extends EngineObject {
         touchGamepadEnable = true;
 
         // apply movement controls
-        if(gameStarted) {
+        if(gameStarted && !gameEnded) {
             if(isUsingGamepad) {
                 this.velocity = this.velocity.add(gamepadStick(0).clampLength(1).scale(this.speed));
             } else {
@@ -285,13 +291,21 @@ class Player extends EngineObject {
         
         // smoothly follow player with lerp
         if(this.lastDirection.y > 0.0) {
-            alterCamDir = vec2(0, 7.5)
+            this.currentAlterCamDistance += 0.3;
+            if(this.currentAlterCamDistance > 7.5) {
+                this.currentAlterCamDistance = 7.5;
+            }
+            alterCamDir = vec2(0, this.currentAlterCamDistance);
         }
         if(this.lastDirection.y < 0.0) {
-            alterCamDir = vec2(0, -7.5)
+            this.currentAlterCamDistance -= 0.3;
+            if(this.currentAlterCamDistance < -7.5) {
+                this.currentAlterCamDistance = -7.5;
+            }
+            alterCamDir = vec2(0, this.currentAlterCamDistance);
         }
 
-        cameraPos = cameraPos.lerp(this.pos.add(alterCamDir), .1);
+        cameraPos = cameraPos.lerp(this.pos.add(alterCamDir), .2);
 
         // only let the camera scroll up
         // no going back
@@ -359,8 +373,9 @@ class Player extends EngineObject {
     }
 
     destroy() {
-        if (this.health < 0) {
+        if (this.health < 1) {
             super.destroy();
+            return true;
         } else {
             return false;
         }
@@ -371,16 +386,34 @@ class Player extends EngineObject {
             let dist = (abs(this.pos.distance(this.lastTouchedBox.pos)) - 1 - ((this.lastTouchedBox.size.x+this.lastTouchedBox.size.y)/2)/2);
 
             if(this.lastTouchedBox.boxColor != BLACK && dist < 1) {
-                this.powerUpSound.play();
+                let colorUsage = this.checkColorUsage(this.lastTouchedBox.boxColor);
+                if(colorUsage > -1) {
+                    this.powerUpSound.play();
 
-                if (this.lastTouchedBox.boxColor == GREEN) {
-                    this.health += 1;
+                    if (this.lastTouchedBox.boxColor == GREEN) {
+                        this.health += 1;
+                    }
+
+                    useColorPower(colorUsage);
                 }
+                
                 //this.lastTouchedBox.color = BLACK;
                 this.lastTouchedBox.destroy();
                 this.lastTouchedBox = null;
             }
         }
+    }
+
+    checkColorUsage(color) {
+        for(let i=0;i<this.colorsCollected.length;i++) {
+            if(this.colorsCollected[i].r == color.r && this.colorsCollected[i].g == color.g && this.colorsCollected[i].b == color.b) {
+                if(this.colorPowerUsage[i] > 0) {
+                    return i;
+                }
+            }
+        }
+
+        return -1;
     }
 
     collideWithObject(object) {
@@ -533,7 +566,7 @@ class Enemy extends EngineObject
     }
 
     scanToShoot() {
-        if(abs(this.pos.distance(player.pos)) < this.shootRange && !this.shooting) {
+        if(player != null && abs(this.pos.distance(player.pos)) < this.shootRange && !this.shooting) {
             this.shoot();
         }
     }
@@ -899,7 +932,19 @@ function loadLevel() {
         
     }
 
+    loadColorPowerUsage();
+
     
+}
+
+function useColorPower(colorNumber) {
+    player.colorPowerUsage[colorNumber] -= 1;
+}
+
+function loadColorPowerUsage() {
+    for(let i=0;i<player.colorsCollected.length;i++) {
+        player.colorPowerUsage[i] = randInt(0, 3);
+    }
 }
 
 function gameInit() {}
@@ -908,6 +953,7 @@ function gameUpdate() {
     if(!paused) {
         if(!intro && !gameStarted) {
             if(keyWasPressed('Space') || gamepadWasPressed(0) || mouseWasPressed(0)) {
+                inputClear();
                 gameStarted = true;
                 player = new Player(vec2(19, 3));
                 loadLevel();
@@ -916,6 +962,7 @@ function gameUpdate() {
 
         if(intro) {
             if(keyWasPressed('Space') || gamepadWasPressed(0) || mouseWasPressed(0)) {
+                inputClear();
                 intro = false;
                 //play_music("title");
             }
@@ -923,6 +970,7 @@ function gameUpdate() {
 
         if(gameEnded) {
             if(keyWasPressed('Space') || gamepadWasPressed(0) || mouseWasPressed(0)) {
+                inputClear();
                 gameEnded = false;
                 win = false;
                 lose = false;
@@ -932,21 +980,25 @@ function gameUpdate() {
             }
         }
 
-        if (keyWasPressed('KeyM')) {
-            toggle_music();
+        if(gameStarted && !gameEnded) {
+            if ((keyWasPressed('KeyL') || gamepadWasPressed(1)) && gameStarted) {
+                engineObjectsDestroy();
+                loadLevel();
+            }
         }
 
-        if ((keyWasPressed('KeyL') || gamepadWasPressed(1)) && gameStarted) {
-            engineObjectsDestroy();
-            loadLevel();
+        if (keyWasPressed('KeyM')) {
+            toggle_music();
         }
     }
 
 }
 function gameUpdatePost() {
-    if((keyWasPressed('KeyP') || gamepadWasPressed(9)) && gameStarted) {
-        paused = !paused;
-        toggle_music();
+    if(gameStarted && !gameEnded) {
+        if((keyWasPressed('KeyP') || gamepadWasPressed(9)) && gameStarted) {
+            paused = !paused;
+            toggle_music();
+        }
     }
 }
 function gameRender() {
@@ -980,17 +1032,25 @@ function gameRenderPost() {
             }
         }
 
-        if(gameStarted) {
-            //drawTextScreen('Colors Collected: ' + player.colorsCollected.length, vec2(125, 30), 25, GREEN);
-            drawRect(vec2(130, 20), vec2(225, 30), WHITE, 0, true, true);
+        if(gameStarted && !gameEnded) {
+            drawTextScreen('Health: ' + player.health + '/' + player.healthMax, vec2(87, 20), 25, GREEN);
+            drawTextScreen('Bullets Loaded: ' + player.roundsLoaded + '/' + player.roundsMax, vec2(133, 50), 25, RED);
 
-            let startX = 32;
-            player.colorsCollected.forEach((c) => {
-                drawRect(vec2(startX, 20), vec2(25), c, 0, true, true);
+            if(player.colorsCollected.length > 0) {
+                drawRect(vec2(130, 90), vec2(225, 30), WHITE, 0, true, true);
+            }
+            
+            let startX = 45;
+            for(let i=0;i<player.colorsCollected.length;i++) {
+                drawRect(vec2(startX, 90), vec2(25), player.colorsCollected[i], 0, true, true);
+                let usage = player.colorPowerUsage[i];
+                let usageColor = BLACK;
+                if(usage == 0) {
+                    usageColor = RED;
+                }
+                drawTextScreen(usage, vec2(startX, 90), 15, usageColor);
                 startX += 32;
-            });
-            drawTextScreen('Health: ' + player.health + '/' + player.healthMax, vec2(87, 60), 25, GREEN);
-            drawTextScreen('Bullets Loaded: ' + player.roundsLoaded + '/' + player.roundsMax, vec2(133, 90), 25, RED);
+            }
         }
     }
 }
