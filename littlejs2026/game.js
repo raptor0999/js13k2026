@@ -15,12 +15,14 @@ let lose = false;
 let levelTint = rgb(1,1,1,1);
 let vertScrollSpeed = .1;
 let player;
+let bouncingBullets = false;
+var bullets = [];
 
 // music section
 let audio = document.createElement("audio");
 audio.loop = true;
 audio.volume = 1.0;
-let msc_title_src, msc_track1_src, snd_colorcollect_src, snd_enemydie_src;
+let msc_title_src, msc_track1_src, msc_lose_src, snd_colorcollect_src, snd_enemydie_src;
 
 // game variables
 let particleEmitter;
@@ -72,6 +74,30 @@ setInterval(function () {
       // Put the generated song in an Audio element.
       var wave = track1_player.createWave();
       msc_track1_src = URL.createObjectURL(new Blob([wave], {type: "audio/wav"}));
+    }
+});
+
+// Initialize music generation (player).
+var t0 = new Date();
+var lose_player = new CPlayer();
+lose_player.init(lose_song);
+
+// Generate music...
+var lose_done = false;
+setInterval(function () {
+    if (lose_done) {
+      return;
+    }
+
+    lose_done = lose_player.generate() >= 1;
+
+    if (lose_done) {
+      var t1 = new Date();
+      console.log("msc lose generate done (" + (t1 - t0) + "ms)");
+
+      // Put the generated song in an Audio element.
+      var wave = lose_player.createWave();
+      msc_lose_src = URL.createObjectURL(new Blob([wave], {type: "audio/wav"}));
     }
 });
 
@@ -153,6 +179,11 @@ function play_music(type) {
         audio.src = msc_track1_src;
     }
 
+    if(type == "lose") {
+        audio.volume = 1.0;
+        audio.src = msc_lose_src;
+    }
+
     audio.play();
 }
 
@@ -200,11 +231,20 @@ class Player extends EngineObject {
         this.powerUpTime = 1.0;
         this.powerUpTimer = new Timer;
 
-        this.lastDirection = null;
+        this.aimDir = vec2(0)
+        this.lastDirection = vec2(0);
+        this.cameraMove = 0;
+        this.cameraMoveMax = 30;
+        this.cameraMoveSpeed = .05;
 
         this.playerColor = BLACK;
 
         this.currentAlterCamDistance = 7.5;
+
+        this.radiansToRotate = 30 * Math.PI / 180;
+        console.log(this.radiansToRotate);
+        this.newX = 0.0;
+        this.newY = 0.0;
     }
 
     collectColor(color) {
@@ -225,6 +265,7 @@ class Player extends EngineObject {
             stop_music();
             gameEnded = true;
             lose = true;
+            play_music("lose");
         } 
     }
 
@@ -235,6 +276,29 @@ class Player extends EngineObject {
     update()
     {   
         super.update();
+
+        if(isUsingGamepad) {
+            this.aimDir = gamepadStick(1);
+        } else {
+            this.aimDir = mousePos.subtract(this.pos).clampLength(3);
+        }
+
+        //engineObjectsRaycast(this.pos, mousePos.subtract(this.pos).rotate(-30));
+        
+
+        /*engineObjectsRaycast(this.pos, mousePos);
+
+        this.newX = this.pos.x + (this.pos.distance(mousePos) * Math.cos(this.radiansToRotate));
+        this.newY = this.pos.y + (this.pos.distance(mousePos) * Math.sin(this.radiansToRotate));
+        console.log("new point: " + vec2(this.newX, this.newY));
+        console.log("new screen points: ")
+        //console.log("new y: " + this.newY);
+        engineObjectsRaycast(this.pos, vec2(this.newX, this.newY));*/
+        
+        /*radiansToRotate = (10*Math.PI)/180;
+        newX = this.pos.x + this.pos.distance(mousePos) * Math.cos(radiansToRotate);
+        newY = this.pos.y + this.pos.distance(mousePos) * Math.sin(radiansToRotate);
+        engineObjectsRaycast(this.pos, vec2(newX, newY));*/
 
         touchGamepadEnable = true;
 
@@ -247,7 +311,7 @@ class Player extends EngineObject {
             }
 
             this.lastDirection = this.velocity;
-
+            
             if ((mouseWasPressed(0) || gamepadWasPressed(7)) && !this.reloading) {
                 this.shoot();
             }
@@ -291,21 +355,38 @@ class Player extends EngineObject {
         
         // smoothly follow player with lerp
         if(this.lastDirection.y > 0.0) {
-            this.currentAlterCamDistance += 0.3;
-            if(this.currentAlterCamDistance > 7.5) {
-                this.currentAlterCamDistance = 7.5;
+            this.currentAlterCamDistance += 0.1;
+            if(this.currentAlterCamDistance > 6.5) {
+                this.currentAlterCamDistance = 6.5;
             }
             alterCamDir = vec2(0, this.currentAlterCamDistance);
         }
         if(this.lastDirection.y < 0.0) {
-            this.currentAlterCamDistance -= 0.3;
-            if(this.currentAlterCamDistance < -7.5) {
-                this.currentAlterCamDistance = -7.5;
+            this.currentAlterCamDistance -= 0.1;
+            if(this.currentAlterCamDistance < -6.5) {
+                this.currentAlterCamDistance = -6.5;
             }
             alterCamDir = vec2(0, this.currentAlterCamDistance);
         }
 
-        cameraPos = cameraPos.lerp(this.pos.add(alterCamDir), .2);
+        /*console.log("lasdir: " + this.lastDirection);
+        if(this.lastDirection.y > 0.0) {
+            this.cameraMove += this.cameraMoveSpeed;
+        }
+        if(this.lastDirection.y < 0.0) {
+            this.cameraMove -= this.cameraMoveSpeed;
+        }
+        console.log("cam move: " + this.cameraMove);
+        if(this.cameraMove > this.cameraMoveMax) {
+            this.cameraMove = this.cameraMoveMax;
+        }
+        if(this.cameraMove < -this.cameraMoveMax) {
+            this.cameraMove = -this.cameraMoveMax;
+        }
+        console.log("cam move: " + this.cameraMove);*/
+
+        cameraPos = cameraPos.lerp(this.pos.add(vec2(0, this.currentAlterCamDistance)).add(this.aimDir), .2);
+
 
         // only let the camera scroll up
         // no going back
@@ -440,17 +521,43 @@ class Bullet extends EngineObject {
         this.boxHitSound = new Sound([.4,,124,.01,.04,.04,5,1.1,-8,,,,,.8,,.1,,.98,.08,,638]); // Hit 45
         this.speed = 1;
         this.damage = 1;
+        this.dTimer = new Timer(1);
 
         this.shootSound.play();
+
+        bullets.push(this);
+
+        console.log("new bullet size: " + bullets.length);
     }
 
-    collideWithObject(object) {
+    update() {
+        super.update();
 
+        if(this.dTimer.elapsed()) {
+            this.destroy();
+        }
+    }
+
+    destroy() {
+        bullets.pop(this);
+
+        console.log("last bullet size: " + bullets.length);
+
+        super.destroy();
     }
 }
 
 class PlayerBullet extends Bullet 
 {
+    constructor(pos, velocity) {
+        super(pos, vec2(.2), 0, 0, BLACK);
+        this.velocity = velocity;
+
+        if(bouncingBullets) {
+            this.restitution = 1;
+        }
+    }
+
     collideWithObject(object) {
         if (object instanceof Player) {
             return false;
@@ -467,12 +574,14 @@ class PlayerBullet extends Bullet
         }
 
         if (object instanceof Box) {
-            this.boxHitSound.play();
-            object.color = rgb(object.color.r, object.color.g, object.color.b, object.color.a-0.20);
-            if(object.color.a < 0.01) {
-                object.destroy();
+            if(!bouncingBullets) {
+                this.boxHitSound.play();
+                object.takeDamage(this.damage);
+                this.destroy();
+            } else {
+                return true;
             }
-            this.destroy();
+            
         }
     }
 }
@@ -496,6 +605,7 @@ class EnemyBullet extends Bullet
 
         if (object instanceof Box) {
             this.boxHitSound.play();
+            object.takeDamage(this.damage);
             this.destroy();
         }
     }
@@ -530,6 +640,15 @@ class Enemy extends EngineObject
 
     update() {
         super.update();
+
+        // aim assist when bullets are close and angle isn't too high
+        /*for(let i=0;i<bullets.length;i++) {
+            if(this.pos.distance(bullets[i].pos) < 5) {
+                //console.log("angle: " + (180 - (Math.acos(this.pos.dot(bullets[i].velocity.abs())/(this.pos.length()*bullets[i].velocity.length()))) * (180/Math.PI)) );
+                let dirVec = bullets[i].pos.subtract(this.pos)
+                console.log("angle: " + Math.atan2(dirVec.y, dirVec.x) * (180/Math.PI));
+            }
+        }*/
 
         let bright = 0;
         if (this.damageTimer.isSet()) {
@@ -574,7 +693,7 @@ class Enemy extends EngineObject
     shoot() {
         if(!this.shooting) {
             this.shooting = true;
-            new EnemyBullet(this.pos, player.pos.subtract(this.pos).normalize());
+            new EnemyBullet(this.pos, player.pos.subtract(this.pos).normalize().scale(.5));
 
             setTimeout(() => { this.shooting = false; }, this.shootRate*1000);
         }
@@ -734,7 +853,23 @@ class Box extends EngineObject
         this.setCollision(); // make object collide
         this.mass = 0; // make object have static physics
 
+        this.bawksExplodeSound = new Sound([1.1,,34,.02,.29,.39,,2.1,-6,,350,,,.8,,.9,,.42]); // Explosion 150
+
         this.boxColor = color;
+        this.healthMax = Math.ceil((size.x + size.y)/2) + 1;
+        this.health = this.healthMax;
+    }
+
+    takeDamage(damage) {
+        this.health -= damage;
+
+        if(this.health < 1) {
+            this.bawksExplodeSound.play();
+            this.destroy();
+        } else {
+            this.color = rgb(this.color.r, this.color.g, this.color.b, this.health/this.healthMax);
+        }
+
     }
 }
 
@@ -745,7 +880,8 @@ class Portal extends EngineObject {
         this.setCollision(); // make object collide
         this.renderOrder = 2;
 
-        this.portalSound = new Sound([1.9,,594,.04,.5,.06,1,3.2,,2,,,,,,,,.74,.27,,663]); // Powerup 16
+        //this.portalSound = new Sound([1.9,,594,.04,.5,.06,1,3.2,,2,,,,,,,,.74,.27,,663]); // Powerup 16
+        this.portalSound = new Sound([2.8,,113,.35,.38,.001,,3.4,,,-483,.02,.04,,1,,.17,.68,.05,.03,-1045]); // Random 216 - Mutation 6
     }
 
     collideWithObject(object) {
@@ -984,6 +1120,10 @@ function gameUpdate() {
             if ((keyWasPressed('KeyL') || gamepadWasPressed(1)) && gameStarted) {
                 engineObjectsDestroy();
                 loadLevel();
+            }
+
+            if ((keyWasPressed('KeyB'))) {
+                bouncingBullets = !bouncingBullets;
             }
         }
 

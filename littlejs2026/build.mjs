@@ -72,6 +72,7 @@ const sourceFiles =
     'audio/player-small.js',
     'audio/music/title_song.js',
     'audio/music/track1_song.js',
+    'audio/music/lose_song.js',
     'audio/sounds/colorcollect_song.js',
     'audio/sounds/enemydie_song.js',
     'game.js',
