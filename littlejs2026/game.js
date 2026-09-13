@@ -33,7 +33,7 @@ let tutsMsgs = ['To move around -- use WASD or Left Stick\n You can move in shad
             'Reload via -- Press R, Right Click or Top Right bumper.\n\nThe character turns red while reloading.', 
             'To advance towards further levels, collect\nthe pieces of rainbow scattered across the level --\nit grants you the power to go through \nthe swirling portals, and a powerup.', 
             'Watch out for enemies snooping around levels!\n\nUse your powers and shoot them to defeat\n or avoid them and try to gallop.', 
-            'Touch colored boxes to recharge the matched powerup.'];
+            'Touch colored boxes to recharge the matched powerup. \nLimit 2 per color at any time.'];
 let curTut = 0;
 let popMsg = false;
 let msg = '';
@@ -250,6 +250,7 @@ class Player extends EngineObject {
 
             if(col == GREEN) {
                 this.health += 1;
+                this.colorTimer.set(2);
                 if(this.health > this.healthMax)
                     this.health = this.healthMax;
             }
@@ -391,6 +392,7 @@ class Player extends EngineObject {
 
             if(this.colorTimer.elapsed()) {
                 this.colorTimer.unset();
+                this.timerColor = '';
                 this.playerColor = this.playerColorDefault;
 
                 if (this.timerColor == BLUE) 
