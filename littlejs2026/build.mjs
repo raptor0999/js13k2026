@@ -17,7 +17,7 @@ import ectLocation from 'ect-bin';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const PROGRAM_TITLE = 'LittleJS JS13K Project';
+const PROGRAM_TITLE = 'Rainbow Rampage';
 const PROGRAM_NAME = 'index';
 const BUILD_FOLDER = 'build';
 const SIZE_LIMIT = 13312; // JS13K limit in bytes
@@ -27,7 +27,7 @@ const SIZE_LIMIT = 13312; // JS13K limit in bytes
 // delete the whole subsystem. See "Saving space" in README.md for measurements.
 const FEATURES =
 {
-    webgl:   false, // WebGL renderer, disabling falls back to canvas 2D
+    webgl:   true, // WebGL renderer, disabling falls back to canvas 2D
     touch:   false, // touch input and the on screen touch gamepad
     gamepad: true, // gamepad input
     sound:   true, // all audio
@@ -45,7 +45,7 @@ const FEATURE_FLAGS =
 };
 
 // Set true to keep intermediate .closure.js / .uglify.js files for debugging
-const DEBUG_BUILD = false;
+const DEBUG_BUILD = true;
 // Roadroller shrinks the code a lot but is the slowest step
 const USE_ROADROLLER = true;
 // Extreme mode takes over a minute and usually saves only a few bytes

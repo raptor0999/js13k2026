@@ -8,7 +8,6 @@
 setShowWatermark(false);
 const lowResSize = 256;
 
-
 let spriteAtlas;
 let intro = false;
 let gameStarted = false;
@@ -27,13 +26,13 @@ let aimToggle = true;
 let tuts = [true, false, false, false, false, false, false];
 let tutTimer = new Timer(0);
 let tutTime = 10;
-let tutsMsgs = ['To move around -- use WASD or Left Stick\n You can move in shadows of boxes and walk behind them.', 
-            'Guide your aim with Mouse or Right stick.', 
-            'Left click or right trigger to shoot!\n\nYour firerate and clip size are limited so aim better.\nThe boxes are destructible upon being hit!', 
-            'Reload via -- Press R, Right Click or Top Right bumper.\n\nThe character turns red while reloading.', 
-            'To advance towards further levels, collect\nthe pieces of rainbow scattered across the level --\nit grants you the power to go through \nthe swirling portals, and a powerup.', 
-            'Watch out for enemies snooping around levels!\n\nUse your powers and shoot them to defeat\n or avoid them and try to gallop.', 
-            'Touch colored boxes to recharge the matched powerup. \nLimit 2 per color at any time.'];
+let tutsMsgs = ['WASD or Left Stick', 
+            'Aim with Mouse or Right stick', 
+            'Left click or right trigger to shoot!\nThe boxes are destructible upon being hit!', 
+            'Reload R, Right Click or Right bumper', 
+            'To advance collect\nthe pieces of rainbow \nit grants you a powerup.', 
+            'Watch out for enemies!', 
+            'Touch colored boxes to recharge'];
 let curTut = 0;
 let popMsg = false;
 let msg = '';
@@ -41,12 +40,12 @@ let msg = '';
 const INDIGO = rgb(.29,0,.51);
 const VIOLET = rgb(.93,.51,.93);
 let rainbowColors = [VIOLET,INDIGO,YELLOW,RED,BLUE,ORANGE,GREEN];
-let colorMsgs = ['Green is healing. Stand next to green boxes\nuntil they fade and explode to gain Green power.\n\nUse selected power with E or left face button.\n\nNOTE: Charge color powers by standing next to color boxes!',
-'Orange is shield. Press E or left face \nbutton to use selected color power. Your shield can block bullets \n and also help destroy enemies without you taking damage.\n\nUse Q, [], or DPad left right to select color power.',
- 'Blue is charge shot. You will turn blue as you charge.\n When finished charging, your next shot will be\n a large, powerful charge shot.',
-  'Red is burst fire. Each shot you shoot is much\n more powerful while using burst fire.\nMake sure you reload first!',
-   'Yellow is invulnerable. You cannot be damaged.\nTake advantage!',
-    'Indigo is screen wipe. This will clear the viewable screen of enemies.',
+let colorMsgs = ['Green is healing. Use selected power with E or left face button',
+'Orange is shield.\n\nUse Q, [], or DPad left right to select color power',
+ 'Blue is charge shot',
+  'Red is burst fire',
+   'Yellow is invulnerable',
+    'Indigo is screen wipe',
      'Violet is mystery!'];
 let levelColorCollected = false;
 
@@ -63,7 +62,7 @@ let a_player = [new CPlayer(),new CPlayer(),new CPlayer(),new CPlayer()];
 let m_arr = [];
 
 for(let i=0;i<a_src.length;i++) {
-    var t0 = new Date();
+    //var t0 = new Date();
     a_player[i].init(a_src[i]);
 
     setInterval(function () {
@@ -625,6 +624,19 @@ class Bullet extends EngineObject {
 
         super.destroy();
     }
+
+    collideWithObject(object) {
+        if (object instanceof PhysicsObject) {
+            this.wallHitSound.play();
+            this.destroy();
+        }
+
+        if (object instanceof Box) {
+            this.boxHitSound.play();
+            object.takeDamage(this.damage);
+            this.destroy();
+        }
+    }
 }
 
 class PlayerBullet extends Bullet 
@@ -651,16 +663,7 @@ class PlayerBullet extends Bullet
             this.destroy();
         }
 
-        if (object instanceof PhysicsObject) {
-            this.wallHitSound.play();
-            this.destroy();
-        }
-
-        if (object instanceof Box) {
-            this.boxHitSound.play();
-            object.takeDamage(this.damage);
-            this.destroy();
-        }
+        super.collideWithObject(object);
     }
 }
 
@@ -684,17 +687,7 @@ class EnemyBullet extends Bullet
             this.destroy();
         }
 
-        if (object instanceof PhysicsObject) {
-            this.wallHitSound.play();
-            this.destroy();
-        }
-
-        if (object instanceof Box) {
-            this.boxHitSound.play();
-            object.takeDamage(this.damage);
-            this.destroy();
-        }
-        
+        super.collideWithObject(object);
     }
 }
 
@@ -993,17 +986,11 @@ class TurtTurt extends Enemy
             this.dmgTimer.set(this.damageTime);
         }
 
-        if (object instanceof PhysicsObject) {
+        if (object instanceof PhysicsObject || object instanceof Box) {
             if(this.rdir != null) {
                 this.rdir = vec2(-this.rdir.x, -this.rdir.y);
             }
             
-        }
-
-        if (object instanceof Box) {
-            if(this.rdir != null) {
-                this.rdir = vec2(-this.rdir.x, -this.rdir.y);
-            }
         }
 
         return true;
@@ -1356,11 +1343,11 @@ function gameUpdate() {
             }
         }
 
-        if(gameStarted && !gameEnded) {
+        /*if(gameStarted && !gameEnded) {
             if ((keyWasPressed('KeyL') || gamepadWasPressed(1)) && gameStarted) {
                 dieAndLoad();
             }
-        }
+        }*/
 
         if (keyWasPressed('KeyM'))
             toggle_music();
@@ -1445,10 +1432,10 @@ function gameRenderPost() {
             drawRect(vec2(origin+w*4,0), vec2(w, mainCanvasSize.y), BLUE);
             drawRect(vec2(origin+w*5,0), vec2(w, mainCanvasSize.y), INDIGO);
             drawRect(vec2(origin+w*6,0), vec2(w, mainCanvasSize.y), VIOLET);
-            drawTextScreenColors('RAINBOW', mainCanvasSize.scale(.5).add(vec2(25,-60)), 38);
+            drawTextScreen('RAINBOW', mainCanvasSize.scale(.5).add(vec2(25,-60)), 38, WHITE, true);
             drawTextScreen('\nRAMPAGE', mainCanvasSize.scale(.5).add(vec2(28,-40)), 38, GRAY);
 
-            drawTextScreen('Left click OR\nPress bottom face button OR \nPress Space to start!', mainCanvasSize.scale(.5).add(vec2(-62,90)), 10, WHITE, 0, BLACK, "left");
+            drawTextScreen('Left click OR\nPress bottom face button OR \nPress Space to start!', mainCanvasSize.scale(.5).add(vec2(-62,90)), 10, WHITE, false, 0, BLACK, "left");
         }
 
         if(gameStarted && gameEnded) {
