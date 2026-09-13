@@ -1236,13 +1236,13 @@ function loadLevel(leveNumber) {
             }
         } while (spawnRedo)
 
-        new RainbowColor(vec2(19, 20), rainbowColors[rainbowColors.length-1]);
-        //new RainbowColor(pos, rainbowColors[rainbowColors.length-1]);
+        //new RainbowColor(vec2(19, 20), rainbowColors[rainbowColors.length-1]);
+        new RainbowColor(pos, rainbowColors[rainbowColors.length-1]);
     }
 
     // create portal to end level
-    new Portal(vec2(19, 30), BLUE);
-    //new Portal(vec2(19, levelSize.y-10), BLUE);
+    //new Portal(vec2(19, 30), BLUE);
+    new Portal(vec2(19, levelSize.y-10), BLUE);
     
     player.pos = vec2(19, 3);
 
