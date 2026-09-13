@@ -1,0 +1,106 @@
+Add art
+
+hero - unicorn
+enemeies
+bauce
+colors
+portal
+boxes
+bullets?
+effects?
+
+
+Main Bauce
+
+Mini Bauce?
+
+More Enemies
+
+Color Powers
+
+When you collect a color it goes to your inventory but with 0 uses. Stand next to boxes of the same color and drain them to increment your color uses. Then use a color power (below) at any time with either (1-7 on keyboard numpad (instantly uses that color power) or by using keys/dpad to select color in inventory then button/key to Use Power)
+
+More Color Effect Powers
+
+ just flash yellow/black/white
+ think that could go for all colors as well. You flash Red when you shoot fire etc
+turn orange when shield is in use
+
+Green - gain one health each use
+
+Orange - Force shield Auto shield block for 1 second. Blocks all damage and projectiles
+
+Red - I love the Red Fire 3 round burst. We could turn the bullets red. Wish list: Burn damage
+
+Yellow - invuln flash colors for 7-10 seconds, no damage taken at all, countdown clock
+
+Blue - Charge Shot, blue of course, does 6x damage and breaks armor, 2 to 3 sec charge time
+
+Indigo - Screen wipe, few seconds of flash with indigo/white/black, cool fx to go with, enemy disintegrate, damage over time (enough to kill most regular enemies), even wipes bullets
+
+Violet - MUSHROOM that makes only you super fast, aka slows down everything else to half speed
+
+
+Color Order
+
+1) Green - Health
+2) Orange - Shield
+3) Blue - Charge
+4) Red - Fire Burst
+5) Yellow - Invuln
+6) Indigo - Wipe
+7) Violet - Slow Speed
+
+
+Ideas
+
+End of Level stats page
+
+Enemy Kills versus Total enemies
+
+Shot hit
+
+Shots fired
+
+Accuracy (shots hit versus shots fired)
+
+Powers used
+
+
+Reduce Music Volume on Paused versus pausing the music too
+
+
+Level Outline and General Rules
+
+Must collect Color piece in level to have Portal take you to next level
+On death, you start the level over
+On death, you lose all color power USES (not colors but the color uses drained from color boxes)
+On death, must collect the Color in the current level again, even if you collected it before dying
+
+Level 1
+All black boxes, white floor, no enemies, Green (Health replenish) color to collect. Also tutorial level, display instructions controls mechanics, etc.
+
+Level 2
+Black boxes w/all previous colors mixed in, green floor, Seekers only, Orange (Shield) color to collect
+
+Level 3
+Black boxes w/all previous colors mixed in, green floor, dark brown sparse grass, Seekers and Roamers, Blue (Charge Shot) color to collect
+
+Level 4
+Black boxes w/all previous colors mixed in, green floor, lighter brown less sparse grass, Seekers, Roamers, and TurtTurt, Red (Fire Burst) color to collect
+
+Level 5
+Black boxes w/all previous colors mixed in, green floor, pale green grass, Seekers, Roamers, and TurtTurt, Yellow (Invuln) color to collect
+
+Level 6
+Black boxes w/all previous colors mixed in, green floor, darker green grass more of it, Seekers, Roamers, and TurtTurt, Indigo (Wipe) color to collect
+
+Level 7
+Black boxes w/all previous colors mixed in, green floor, lush grass everywhere, Seekers, Roamers, and TurtTurt, Violet (Slow Speed) color to collect
+
+Level 8
+Final Bauce level, boxes are ALL colored, must use all powers to destroy Bauce before being destroyed, Bauce possibly spawns above minions randomly
+
+
+
+

@@ -7,7 +7,8 @@
 
 setShowWatermark(false);
 const lowResSize = 256;
-
+setCanvasPixelated(true);
+glSetAntialias(true);
 
 let spriteAtlas;
 let intro = false;
@@ -15,83 +16,161 @@ let gameStarted = false;
 let gameEnded = false;
 let win = false;
 let lose = false;
-let levelTint = WHITE;
+let levelTint = rgb(1,1,1,1);
 let vertScrollSpeed = .1;
 let player;
+let bouncingBullets = false;
 let enemies = [];
 let bullets = [];
 let boxes = [];
 let randomColorLeft = null;
 let aimToggle = true;
 
-let tuts = [true, false, false, false, false, false, false];
-let tutTimer = new Timer(0);
-let tutTime = 10;
-let tutsMsgs = ['To move around -- use WASD or Left Stick\n You can move in shadows of boxes and walk behind them.', 
-            'Guide your aim with Mouse or Right stick.', 
-            'Left click or right trigger to shoot!\n\nYour firerate and clip size are limited so aim better.\nThe boxes are destructible upon being hit!', 
-            'Reload via -- Press R, Right Click or Top Right bumper.\n\nThe character turns red while reloading.', 
-            'To advance towards further levels, collect\nthe pieces of rainbow scattered across the level --\nit grants you the power to go through \nthe swirling portals, and a powerup.', 
-            'Watch out for enemies snooping around levels!\n\nUse your powers and shoot them to defeat\n or avoid them and try to gallop.', 
-            'Touch colored boxes to recharge the matched powerup.'];
-let curTut = 0;
-let popMsg = false;
-let msg = '';
-
-const INDIGO = rgb(.29,0,.51);
-const VIOLET = rgb(.93,.51,.93);
-let rainbowColors = [VIOLET,INDIGO,YELLOW,RED,BLUE,ORANGE,GREEN];
-let colorMsgs = ['Green is healing. Stand next to green boxes\nuntil they fade and explode to gain Green power.\n\nUse selected power with E or left face button.\n\nNOTE: Charge color powers by standing next to color boxes!',
-'Orange is shield. Press E or left face \nbutton to use selected color power. Your shield can block bullets \n and also help destroy enemies without you taking damage.\n\nUse Q, [], or DPad left right to select color power.',
- 'Blue is charge shot. You will turn blue as you charge.\n When finished charging, your next shot will be\n a large, powerful charge shot.',
-  'Red is burst fire. Each shot you shoot is much\n more powerful while using burst fire.\nMake sure you reload first!',
-   'Yellow is invulnerable. You cannot be damaged.\nTake advantage!',
-    'Indigo is screen wipe. This will clear the viewable screen of enemies.',
-     'Violet is mystery!'];
-let levelColorCollected = false;
+const INDIGO = rgb(0.29, 0, 0.51);
+const VIOLET = rgb(0.93, 0.51, 0.93);
 
 // music section
 let audio = document.createElement("audio");
 audio.loop = true;
-audio.volume = 1;
+audio.volume = 1.0;
+let msc_title_src, msc_track1_src, msc_lose_src, snd_colorcollect_src, snd_enemydie_src;
+
+// game variables
+let particleEmitter;
+
+// Initialize music generation (player).
+var t0 = new Date();
+var title_player = new CPlayer();
+title_player.init(title_song);
+
+// Generate music...
+var title_done = false;
+setInterval(function () {
+    if (title_done) {
+      return;
+    }
+
+    title_done = title_player.generate() >= 1;
+
+    if (title_done) {
+      var t1 = new Date();
+      console.log("msc title generate done (" + (t1 - t0) + "ms)");
+
+      // Put the generated song in an Audio element.
+      var wave = title_player.createWave();
+      msc_title_src = URL.createObjectURL(new Blob([wave], {type: "audio/wav"}));
+
+      play_music("title");
+    }
+});
+
+// Initialize music generation (player).
+var t0 = new Date();
+var track1_player = new CPlayer();
+track1_player.init(track1_song);
+
+// Generate music...
+var track1_done = false;
+setInterval(function () {
+    if (track1_done) {
+      return;
+    }
+
+    track1_done = track1_player.generate() >= 1;
+
+    if (track1_done) {
+      var t1 = new Date();
+      console.log("msc track1 generate done (" + (t1 - t0) + "ms)");
+
+      // Put the generated song in an Audio element.
+      var wave = track1_player.createWave();
+      msc_track1_src = URL.createObjectURL(new Blob([wave], {type: "audio/wav"}));
+    }
+});
+
+// Initialize music generation (player).
+var t0 = new Date();
+var lose_player = new CPlayer();
+lose_player.init(lose_song);
+
+// Generate music...
+var lose_done = false;
+setInterval(function () {
+    if (lose_done) {
+      return;
+    }
+
+    lose_done = lose_player.generate() >= 1;
+
+    if (lose_done) {
+      var t1 = new Date();
+      console.log("msc lose generate done (" + (t1 - t0) + "ms)");
+
+      // Put the generated song in an Audio element.
+      var wave = lose_player.createWave();
+      msc_lose_src = URL.createObjectURL(new Blob([wave], {type: "audio/wav"}));
+    }
+});
+
 let snd = document.createElement("audio");
 snd.loop = false;
-snd.volume = .3;
-let a_src = [title_song,track1_song,colorcollect_song,enemydie_song];
-let a_done = [false,false,false,false]
-let a_player = [new CPlayer(),new CPlayer(),new CPlayer(),new CPlayer()];
-let m_arr = [];
+snd.volume = 1.0;
 
-for(let i=0;i<a_src.length;i++) {
-    var t0 = new Date();
-    a_player[i].init(a_src[i]);
+var colorcollect_player = new CPlayer();
+colorcollect_player.init(colorcollect_song);
 
-    setInterval(function () {
-        if (a_done[i])
-          return;
+var colorcollect_done = false;
+setInterval(function () {
+    if (colorcollect_done) {
+      return;
+    }
 
-        a_done[i] = a_player[i].generate() >= 1;
+    colorcollect_done = colorcollect_player.generate() >= 1;
 
-        if (a_done[i]) {
-          m_arr.push(URL.createObjectURL(new Blob([a_player[i].createWave()], {type: "audio/wav"})));
+    if (colorcollect_done) {
+      var t1 = new Date();
+      console.log("snd colorcollect generate done (" + (t1 - t0) + "ms)");
 
-          if(i == 0)
-            play_music("title");
-        }
-    });
-}
+      // Put the generated song in an Audio element.
+      var wave = colorcollect_player.createWave();
+      snd_colorcollect_src = URL.createObjectURL(new Blob([wave], {type: "audio/wav"}));
+    }
+});
+
+var enemydie_player = new CPlayer();
+enemydie_player.init(enemydie_song);
+
+var enemydie_done = false;
+setInterval(function () {
+    if (enemydie_done) {
+      return;
+    }
+
+    enemydie_done = enemydie_player.generate() >= 1;
+
+    if (enemydie_done) {
+      var t1 = new Date();
+      console.log("snd enemydie generate done (" + (t1 - t0) + "ms)");
+
+      // Put the generated song in an Audio element.
+      var wave = enemydie_player.createWave();
+      snd_enemydie_src = URL.createObjectURL(new Blob([wave], {type: "audio/wav"}));
+    }
+});
 
 function play_sound(type) {
     snd.currentTime = 0.0;
 
     if(type == "color_collect") {
-        snd.src = m_arr[0];
+        snd.volume = 0.3;
+        snd.src = snd_colorcollect_src;
 
         snd.play();
     }
 
     if(type == "enemy_die") {
-        snd.src = m_arr[1];
+        snd.volume = 0.3;
+        snd.src = snd_enemydie_src;
 
         snd.play();
     }
@@ -99,36 +178,37 @@ function play_sound(type) {
 
 function play_music(type) {
     audio.pause();
-    audio.currentTime = 0;
+    audio.currentTime = 0.0;
 
     if(type == "title") {
-        audio.volume = 1;
-        audio.src = m_arr[3];
+        audio.volume = 1.0;
+        audio.src = msc_title_src;
     }
 
     if(type == "track1") {
-        audio.volume = .3;
-        audio.src = m_arr[2];
+        audio.volume = 0.3;
+        audio.src = msc_track1_src;
     }
 
     if(type == "lose") {
-        audio.volume = 1;
-        audio.src = m_arr[4];
+        audio.volume = 1.0;
+        audio.src = msc_lose_src;
     }
 
     audio.play();
 }
 
 function toggle_music() {
-    if(audio.paused)
+    if(audio.paused) {
         audio.play();
-    else
+    } else {
         audio.pause();
+    }
 }
 
 function stop_music(type) {
     audio.pause();
-    audio.currentTime = 0;
+    audio.currentTime = 0.0;
 }
 
 class Player extends EngineObject {
@@ -141,9 +221,7 @@ class Player extends EngineObject {
         this.damping = 0.7;
         this.colorsCollected = [];
         this.colorPowerUsage = [];
-        this.colorPowerUsageMax = 2;
         this.lastColorCollected = null;
-        this.colorPowerSelected = 0;
         this.roundsMax = 6;
         this.roundsLoaded = 6;
         this.shootTimer = new Timer;
@@ -153,7 +231,7 @@ class Player extends EngineObject {
 
         this.hitSound = new Sound([1.6,,418,.01,.08,.09,4,2.2,1,,,,,1.8,,.1,.05,.53,.08,,149]); // Hit 2
         this.colorDrainSound = new Sound([,,531,.07,.29,.2,,3.7,,200,206,.14,.03,,,.1,,.53,.25,.18]); // Powerup 21
-        this.powerUpSound = new Sound([.2,,474,.08,.24,.28,,0,5,,163,.08,,,,,,.68,.26]); // Powerup 42
+        this.powerUpSound = new Sound([,,474,.08,.24,.28,,0,5,,163,.08,,,,,,.68,.26]); // Powerup 42
         this.reloadingSound = new Sound([,,225,.06,.26,.06,1,.7,,3,-85,.14,,,,,,.53,.14]); // Powerup 150
         this.reloadedSound = new Sound([1.6,,103,.01,.03,.03,,2.6,,,-366,,,,3,,.01,.82,.01,.19]); // Blip 147
 
@@ -162,18 +240,17 @@ class Player extends EngineObject {
         this.damage = 1;
         this.damageTimer = new Timer;
         this.speed = .06;
-        this.currentLevel = 1;
 
         this.lastTouchedBox = null;
         this.powerUpTime = 1.0;
         this.powerUpTimer = new Timer;
-
-        this.colorTimer = new Timer;
-        this.timerColor = '';
-
+        this.orangeTimer = new Timer;
+        this.redTimer = new Timer;
+        this.yellowTimer = new Timer;
+        this.blueTimer = new Timer;
         this.chargeShot = false;
-        this.indigoDistance = 25.0;
-        this.indigoDamage = 5.0;
+        this.indigoTimer = new Timer;
+        this.violetTimer = new Timer;
 
         this.aimDir = vec2(0);
         this.hits = [];
@@ -207,22 +284,10 @@ class Player extends EngineObject {
         this.lastColorCollected = color;
     }
 
-    selectColorPower(dir) {
-        this.colorPowerSelected += dir;
-
-        if(this.colorPowerSelected < 0)
-            this.colorPowerSelected = this.colorsCollected.length-1;
-
-        if(this.colorPowerSelected > this.colorsCollected.length-1)
-            this.colorPowerSelected = 0;
-    }
-
     collectPower(col) {
         for(let i=0;i<this.colorsCollected.length;i++) {
-            if(colEq(col, this.colorsCollected[i])) {
+            if(col.r == this.colorsCollected[i].r && col.g == this.colorsCollected[i].g && col.b == this.colorsCollected[i].b) {
                 this.colorPowerUsage[i] += 1;
-                if(this.colorPowerUsage[i] > this.colorPowerUsageMax)
-                    this.colorPowerUsage[i] = this.colorPowerUsageMax;
             }
         }
 
@@ -233,7 +298,7 @@ class Player extends EngineObject {
 
     checkColorUsage(color) {
         for(let i=0;i<this.colorsCollected.length;i++) {
-            if(colEq(this.colorsCollected[i], color)) {
+            if(this.colorsCollected[i].r == color.r && this.colorsCollected[i].g == color.g && this.colorsCollected[i].b == color.b) {
                 if(this.colorPowerUsage[i] > 0) {
                     return i;
                 }
@@ -250,38 +315,33 @@ class Player extends EngineObject {
 
             if(col == GREEN) {
                 this.health += 1;
-                if(this.health > this.healthMax)
-                    this.health = this.healthMax;
             }
             if(col == ORANGE) {
-                this.colorTimer.set(1);
+                this.orangeTimer.set(1);
+                this.playerColor = ORANGE;
                 new Shield(player.pos.add(vec2(0,2)));
             }
             if(col == RED) {
-                this.colorTimer.set(5);
+                this.redTimer.set(5);
+                this.playerColor = RED;
             }
             if(col == YELLOW) {
                 this.yellowTimer.set(10);
+                this.playerColor = YELLOW;
             }
             if(col == BLUE) {
                 this.blueTimer.set(3);
                 this.chargeShot = false;
+                this.playerColor = BLUE;
             }
             if(col == INDIGO) {
                 this.indigoTimer.set(5);
-
-                for (let i=0;i<enemies.length;i++) {
-                    if(enemies[i].pos.distance(player.pos) < this.indigoDistance) {
-                        enemies[i].takeDamage(this.indigoDamage);
-                    }
-                }
+                this.playerColor = INDIGO;
             }
             if(col == VIOLET) {
-
+                this.violetTimer.set(2.5);
+                this.playerColor = VIOLET;
             }
-
-            this.timerColor = col;
-            this.playerColor = col;
 
             this.useColorPower(colorUsage);
         }
@@ -292,7 +352,7 @@ class Player extends EngineObject {
     }
 
     takeDamage(damage) {
-        if(!this.colorTimer.isSet() && !this.timerColor != YELLOW) {
+        if(!this.yellowTimer.isSet()) {
             this.health -= damage;
             this.damageTimer.set();
         }
@@ -300,9 +360,12 @@ class Player extends EngineObject {
         this.hitSound.play();
 
         if(this.health < 1) {
-            popMessage('You died. But fortunately this is not the end for you!\nYou will respawn on the level you died on.');
-            this.health = this.healthMax;
-            dieAndLoad();
+            this.destroy();
+            player = null;
+            stop_music();
+            gameEnded = true;
+            lose = true;
+            play_music("lose");
         } 
     }
 
@@ -347,34 +410,27 @@ class Player extends EngineObject {
                 this.startReload();
             }
 
-             if (keyWasPressed('BracketLeft') || gamepadWasPressed(14))
-                this.selectColorPower(-1);
-
-            if (keyWasPressed('BracketRight') || keyWasPressed('KeyQ') || keyWasPressed('Tab') || gamepadWasPressed(15))
-                this.selectColorPower(1);
-
             for(let i=0;i<7;i++) {
                 if(keyWasPressed("Digit"+(i+1)))
                     this.usePower(this.colorsCollected[i]);
             }
 
-            if(keyWasPressed('KeyE') || gamepadWasPressed(2))
-                this.usePower(this.colorsCollected[this.colorPowerSelected]);
+            if(keyWasPressed('KeyE') || gamepadWasPressed(2)) {
+                this.usePower(ORANGE);
+            }
 
             if(this.lastTouchedBox) {
                 let dist = (abs(this.pos.distance(this.lastTouchedBox.pos)) - 1 - ((this.lastTouchedBox.size.x+this.lastTouchedBox.size.y)/2)/2);
 
-                //console.log(this.lastTouchedBox.boxColor);
-
-                if(JSON.stringify(this.lastTouchedBox.boxColor) != JSON.stringify(BLACK) && dist < 1) {
+                if(this.lastTouchedBox.boxColor != BLACK && dist < 1) {
                     if(!this.powerUpTimer.isSet()) {
                         this.powerUpTimer.set(this.powerUpTime);
+                    } else {
+                        this.lastTouchedBox.color = rgb(this.lastTouchedBox.color.r, this.lastTouchedBox.color.g, this.lastTouchedBox.color.b, this.lastTouchedBox.color.a-0.02)
                     }
-
-                    this.lastTouchedBox.health -= 0.08; 
                 }
 
-                if(JSON.stringify(this.lastTouchedBox.boxColor) != JSON.stringify(BLACK) && dist > 1) {
+                if(this.lastTouchedBox.boxColor != BLACK && dist > 1) {
                     this.powerUpTimer.unset();
                     this.lastTouchedBox = null;
                 }
@@ -389,12 +445,35 @@ class Player extends EngineObject {
                 this.collectPower(this.lastTouchedBox.boxColor);
             }
 
-            if(this.colorTimer.elapsed()) {
-                this.colorTimer.unset();
+            if(this.orangeTimer.elapsed()) {
+                this.orangeTimer.unset();
                 this.playerColor = this.playerColorDefault;
+            }
 
-                if (this.timerColor == BLUE) 
-                    player.chargeShot = true;
+            if(this.redTimer.elapsed()) {
+                this.redTimer.unset();
+                this.playerColor = this.playerColorDefault;
+            }
+
+            if(this.yellowTimer.elapsed()) {
+                this.yellowTimer.unset();
+                this.playerColor = this.playerColorDefault;
+            }
+
+            if(this.blueTimer.elapsed()) {
+                this.blueTimer.unset();
+                player.chargeShot = true;
+                this.playerColor = this.playerColorDefault;
+            }
+
+            if(this.indigoTimer.elapsed()) {
+                this.indigoTimer.unset();
+                this.playerColor = this.playerColorDefault;
+            }
+
+            if(this.violetTimer.elapsed()) {
+                this.violetTimer.unset();
+                this.playerColor = this.playerColorDefault;
             }
         }
 
@@ -416,15 +495,13 @@ class Player extends EngineObject {
             alterCamDir = vec2(0, this.currentAlterCamDistance);
         }
 
-        cameraPos = cameraPos.lerp(this.pos.add(vec2(0, this.currentAlterCamDistance)), .2);
-
-        cameraPos = cameraPos.lerp(this.pos.add(this.aimDir), .1);
+        cameraPos = cameraPos.lerp(this.pos.add(vec2(0, this.currentAlterCamDistance)).add(this.aimDir), .2);
     }
 
     shoot() {
         // check if we have a round to shoot or not
         if (this.roundsLoaded > 0) {
-            if (!this.shootTimer.isSet() && !this.colorTimer.isSet() && this.timerColor != ORANGE) {
+            if (!this.shootTimer.isSet() && !this.orangeTimer.isSet()) {
                 // calculate trajectory
                 let tra = vec2(0);
 
@@ -440,7 +517,7 @@ class Player extends EngineObject {
 
                 // shoot bullet
                 let bulletColor = BLACK;
-                if(this.colorTimer.isSet() && this.timerColor == RED) {
+                if(this.redTimer.isSet()) {
                     bulletColor = RED;
 
                     for(let i=0;i<4;i++) {
@@ -492,16 +569,15 @@ class Player extends EngineObject {
         
         this.color = rgb(this.playerColor.r+bright, this.playerColor.g+bright, this.playerColor.b+bright, this.playerColor.a);
 
-        if(this.chargeShot)
-            this.color = BLUE;
-
         // draw shadow
         drawTile(vec2(this.pos.x, this.pos.y-0.4).add(this.drawOffset), vec2(1.9), spriteAtlas.shadow, rgb(1,1,1,0.3), this.angle, this.mirror);
         
-        if(this.velocity.x < 0)
-            this.mirror = true;
-        else
+        if(this.velocity.x < 0) {
+            this.mirror = true;        
+        } 
+        if(this.velocity.x > 0) {
             this.mirror = false;
+        }
 
         // figure out what animation and then draw the frame
         if(this.velocity.length() > 0.01) {
@@ -521,57 +597,60 @@ class Player extends EngineObject {
 
         drawTile(this.pos.add(this.drawOffset), this.drawSize, this.tileInfo, this.color, this.angle, this.mirror, this.additiveColor);
 
-        if (aimToggle) {
-            //this.hits = engineObjectsRaycast(this.pos, this.pos.add(this.aimDir.normalize().scale(25)), enemies);
-            drawTile(this.pos.add(this.aimDir.normalize().scale(5)), vec2(.3), spriteAtlas.seeker, RED);
+        //drawTile(this.pos.add(this.aimDir.normalize().scale(5)).rotate(-15), vec2(.3), spriteAtlas.seeker, rgb(1,0,0,.5));
+
+        
+
+        if (this.hits != null && this.hits.length > 0 && aimToggle) {
+            this.hits = engineObjectsRaycast(this.pos, this.pos.add(this.aimDir.normalize().scale(25)), enemies);
+            drawTile(this.hits[0].pos, vec2(.3), spriteAtlas.seeker, RED);
         } 
+        
+
+        //drawTile(this.pos.add(this.aimDir.normalize().scale(5)).rotate(15), vec2(.3), spriteAtlas.seeker, rgb(1,0,0,.5));
     }
 
     destroy() {
         if (this.health < 1 || gameEnded) {
             super.destroy();
             return true;
-        } else
+        } else {
             return false;
+        }
     }
 
     collideWithObject(object) {
-        if(object instanceof Box)
+        if(object instanceof Box) {
             this.lastTouchedBox = object;
+        }
 
         return true;
     }
-}
-
-function colEq(col1, col2) {
-    if(col1.r == col2.r && col1.g == col2.g && col1.b == col2.b) 
-        return true;
-    
-    return false
 }
 
 class Shield extends EngineObject
 {
     constructor(pos)
     {
-        super(pos, vec2(1,1), null, 0, ORANGE);
-        this.setCollision(); 
-        this.mass = 0; 
+        super(pos, vec2(2,.5), null, 0, ORANGE); // set object position and size
+        this.setCollision(); // make object collide
+        this.mass = 0; // make object have static physics
 
-        this.shieldSound = new Sound([1.1,,543,.02,.03,.03,,2.5,-2,,67,.05,.01,,,,,.57,.01,.07]); 
+        this.shieldSound = new Sound([2.6,,244,.01,.02,.18,1,1.6,,,,,,1,,.3,,.62,.06,,-2259]); // Hit 399
+
         this.destroyTimer = new Timer(1);
-
-        this.tileInfo = spriteAtlas.shield;
     }
 
     update() {
         super.update();
 
         this.pos = player.pos.add(player.aimDir.normalize().scale(3));
+
         this.angle = player.aimDir.angle();
 
-        if(this.destroyTimer.elapsed())
+        if(this.destroyTimer.elapsed()) {
             this.destroy();
+        }
     }
 
     collideWithObject(object) {
@@ -592,26 +671,42 @@ class Bullet extends EngineObject {
         this.damping = 0.98;
         this.velocity = velocity;
 
-        this.shootSound = new Sound([1.4,,533,.02,.08,.22,,3.6,-5,,219,.07,,,,,,.77,.01,,413]);
-        this.redShootSound = new Sound([.8,,50,.04,.12,.2,4,3.2,6,,,,,1.8,.4,.3,,.47,.14,,666]);
-        this.wallHitSound = new Sound([1.1,,44,.01,.02,.09,4,2.4,-0.5,,,,,1.1,8.5,.4,,.6,.02]);
-        this.boxHitSound = new Sound([.4,,124,.01,.04,.04,5,1.1,-8,,,,,.8,,.1,,.98,.08,,638]);
+        //this.shootSound = new Sound([.7,,120,.02,.07,.06,,3.5,17,-9,,,,,,,,.59,.08,,99]); // Shoot 9
+        this.shootSound = new Sound([1.4,,533,.02,.08,.22,,3.6,-5,,219,.07,,,,,,.77,.01,,413]); // Pickup 141
+        this.redShootSound = new Sound([.8,,50,.04,.12,.2,4,3.2,6,,,,,1.8,.4,.3,,.47,.14,,666]); // Explosion 378
+        this.wallHitSound = new Sound([1.1,,44,.01,.02,.09,4,2.4,-0.5,,,,,1.1,8.5,.4,,.6,.02]); // Hit 39 - Copy 5
+        this.boxHitSound = new Sound([.4,,124,.01,.04,.04,5,1.1,-8,,,,,.8,,.1,,.98,.08,,638]); // Hit 45
         this.damage = damage;
         this.speed = speed;
         this.dTime = dTime;
         this.dTimer = new Timer(this.dTime);
 
-        if(color == RED) 
+        if(color == RED) {
             this.redShootSound.play();
-        else 
+        } else {
             this.shootSound.play();
+        }
 
+        // comet emitter - position updated each frame in gameUpdate
+        this.cometEmitter = new ParticleEmitter(
+            this.pos, 0,
+            0, 0, 100, PI,
+            tile(0),
+            rgb(1,1,.3,.2), rgb(1,.5,.1,.2),
+            rgb(1,0,0,0), rgb(.5,0,1,0),
+            1, 1, 3, .01, 0,
+            .95, 1, .02, PI, .2,
+            .3, 0, 1, 0
+        );
+        
 
         bullets.push(this);
     }
 
     update() {
         super.update();
+
+        this.cometEmitter.pos = this.pos;
 
         if(this.dTimer.elapsed()) {
             this.destroy();
@@ -620,6 +715,22 @@ class Bullet extends EngineObject {
 
     destroy() {
         bullets.pop(this);
+
+        const hue = rand();
+        const particleEmitter = new ParticleEmitter(
+            this.pos, 0,
+            0, 0.1, 500, PI,
+            tile(0, 16),
+            hsl(hue,1,.5),   hsl(hue,1,1),
+            hsl(hue,1,.5,0), hsl(hue,1,1,0),
+            2, .2, .2, .2, .05,
+            .99, 1, 1, PI,
+            .05, .8, true
+        );
+        particleEmitter.restitution = .5; // bounce when it collides
+        particleEmitter.trailScale = 2;   // stretch as it moves
+
+        this.cometEmitter.destroy();
 
         super.destroy();
     }
@@ -632,10 +743,13 @@ class PlayerBullet extends Bullet
         this.velocity = velocity;
 
         if (player.chargeShot) {
-            this.size = vec2(1.5);
+            this.size = vec2(2);
             this.color = BLUE;
-            this.tileInfo = spriteAtlas.charge;
             this.damage = this.damage * 6;
+        }
+
+        if(bouncingBullets) {
+            this.restitution = 1;
         }
     }
 
@@ -655,9 +769,14 @@ class PlayerBullet extends Bullet
         }
 
         if (object instanceof Box) {
-            this.boxHitSound.play();
-            object.takeDamage(this.damage);
-            this.destroy();
+            if(!bouncingBullets) {
+                this.boxHitSound.play();
+                object.takeDamage(this.damage);
+                this.destroy();
+            } else {
+                return true;
+            }
+            
         }
     }
 }
@@ -692,7 +811,6 @@ class EnemyBullet extends Bullet
             object.takeDamage(this.damage);
             this.destroy();
         }
-        
     }
 }
 
@@ -700,8 +818,8 @@ class Enemy extends EngineObject
 {
     constructor(pos, size, color, health=1, damage=1, speed=0.1, patrolDistance=30, shootRange=10, shootRate=2.0)
     {
-        super(pos, size, null, 0, color); 
-        this.setCollision();
+        super(pos, size, null, 0, color); // set object position and size
+        this.setCollision(); // make object collide
         this.mass = 1;
         this.damping = 0.5;
 
@@ -768,6 +886,7 @@ class Enemy extends EngineObject
             while(this.rdir == null) {
                 // get random direction of length patrolDistance
                 this.rdir = randVec2(this.patrolDistance);
+                //hits = engineObjectsRaycast(this.pos, this.pos.add(this.rdir));
             }
         
             newVel = this.rdir.clampLength(1).scale(this.speed);
@@ -793,16 +912,16 @@ class Enemy extends EngineObject
         this.velocity = newVel;
     }
 
-    scanToShoot(object, speed, damage, dTime) {
-        if(object != null && abs(this.pos.distance(object.pos)) < this.shootRange && !this.shooting) {
-            this.shoot(object, speed, damage, dTime);
+    scanToShoot(speed, damage, dTime) {
+        if(player != null && abs(this.pos.distance(player.pos)) < this.shootRange && !this.shooting) {
+            this.shoot(speed, damage, dTime);
         }
     }
 
-    shoot(object, speed, damage, dTime) {
+    shoot(speed, damage, dTime) {
         if(!this.shooting) {
             this.shooting = true;
-            new EnemyBullet(this.pos, object.pos.subtract(this.pos).normalize().scale(speed), damage, speed, dTime);
+            new EnemyBullet(this.pos, player.pos.subtract(this.pos).normalize().scale(speed), damage, speed, dTime);
 
             setTimeout(() => { this.shooting = false; }, this.shootRate*1000);
         }
@@ -813,10 +932,12 @@ class Enemy extends EngineObject
         this.damageTimer.set();
 
         if(this.health < 1) {
+            //this.dieSound.play();
             play_sound("enemy_die");
             this.destroy();
-        } else 
-            this.hitSound.play();     
+        } else {
+            this.hitSound.play();
+        }        
     }
 
     doDamage(damage, object) {
@@ -824,6 +945,30 @@ class Enemy extends EngineObject
     }
 
     destroy() {
+        // fire
+        new ParticleEmitter(
+            this.pos, 0,
+            .5, .3, 200, PI,
+            tile(0),
+            rgb(1,.5,.1), rgb(1,.1,.1),
+            rgb(1,.5,.1,0), rgb(1,.1,.1,0),
+            .7, 2, 0, .2, .05,
+            .9, 1, -1, PI, .05,
+            .5, 0, 1, 0
+        );
+
+        // smoke
+        new ParticleEmitter(
+            this.pos, 0,
+            1, .3, 50, PI,
+            tile(0),
+            hsl(0,0,0,.5), hsl(0,0,1,.5),
+            hsl(0,0,0,0), hsl(0,0,1,0),
+            .8, .5, 2, .2, .02,
+            .85, 1, -1, PI, .3,
+            .3, 0, 0, 1
+        );
+
         for (let i=0;i<enemies.length;i++) {
             if(enemies[i].id == this.id) {
                 enemies.splice(i, 1);
@@ -849,7 +994,7 @@ class Roamer extends Enemy
     update() {
         super.patrol();
 
-        this.scanToShoot(player, this.bulletSpeed, this.bulletDamage, 1);
+        this.scanToShoot(this.bulletSpeed, this.bulletDamage, 1);
 
         super.update();
     }
@@ -898,11 +1043,12 @@ class Seeker extends Enemy
 
         super.update();
 
-        if(this.velocity.x < 0)
-            this.angle -= .07;
-
-        if(this.velocity.x > 0)
+        if(this.velocity.x < 0) {
+            this.angle -= .07;        
+        } 
+        if(this.velocity.x > 0) {
             this.angle += .07;
+        }
 
         if(player != null && this.pos.distance(player.pos) < this.seekDistance) {
             this.state = "seeking";
@@ -927,18 +1073,42 @@ class Seeker extends Enemy
     }
 }
 
+class Charger extends Enemy 
+{
+    constructor(pos, size, color) {
+        super(pos, size, color, 3);
+        this.setCollision();
+    }
+
+    update() {
+        super.patrol();
+
+        this.scanToShoot();
+
+        super.update();
+    }
+
+    collideWithObject(object) {
+        if (object instanceof Player) {
+            super.takeDamage(1);
+        }
+
+        this.rdir = null;
+        return true;
+    }
+}
 
 class TurtTurt extends Enemy 
 {
     constructor(pos, size, color) {
-        super(pos, size, color, 5, 3, 0.05);
+        super(pos, size, color, 10, 3, 0.05);
         this.setCollision();
         this.renderOrder = 0;
 
         this.dmgTimer = new Timer(.5);
         this.damageTime = 2.0;
 
-        this.bulletSpeed = .4;
+        this.bulletSpeed = .2;
         this.bulletDamage = 10;
         this.shootRate = 5;
         this.shootTime = 5;
@@ -953,22 +1123,7 @@ class TurtTurt extends Enemy
 
         super.update();
 
-        // find boxes within shoot range
-        if(player != null && this.pos.distance(player.pos) < this.shootRange*2) {
-            let bs = [];
-            let bd = [];
-            for(const b of boxes) {
-                let d = this.pos.distance(b.pos)
-                if(d <= this.shootRange) {
-                    bs.push(b);
-                    bd.push(d);
-                }
-            }
-
-            // find closest box to shoot
-            super.scanToShoot(bs[bd.indexOf(Math.min(...bd))], this.bulletSpeed, this.bulletDamage, 3);
-        }
-        
+        super.scanToShoot(this.bulletSpeed, this.bulletDamage, 2);
     }
 
     render() {
@@ -1008,13 +1163,21 @@ class TurtTurt extends Enemy
     }
 }
 
+class Floor extends EngineObject
+{
+    constructor(pos, size, color)
+    {
+        super(pos, size, null, 0, color); // set object position and size
+    }
+}
+
 class PhysicsObject extends EngineObject
 {
     constructor(pos, size)
     {
-        super(pos, size, null, 0, BLACK);
-        this.setCollision();
-        this.mass = 0;
+        super(pos, size, null, 0, BLACK); // set object position and size
+        this.setCollision(); // make object collide
+        this.mass = 0; // make object have static physics
     }
 }
 
@@ -1022,62 +1185,49 @@ class Box extends EngineObject
 {
     constructor(pos, size, what, when, color)
     {
-        super(pos, size.divide(vec2(1,4)), what, when, color);
-        this.setCollision();
-        this.mass = 0;
+        super(pos, size.divide(vec2(1,4)), what, when, color); // set object position and size
+        this.setCollision(); // make object collide
+        this.mass = 0; // make object have static physics
         this.renderOrder = 1;
 
-        this.id = rand(64000);
+        this.bawksExplodeSound = new Sound([1.1,,34,.02,.29,.39,,2.1,-6,,350,,,.8,,.9,,.42]); // Explosion 150
 
-        this.bawksExplodeSound = new Sound([1.1,,34,.02,.29,.39,,2.1,-6,,350,,,.8,,.9,,.42]);
-
-        this.boxColor = color.copy();
+        this.boxColor = color;
         this.healthMax = Math.ceil((size.x + size.y)/2) + 1;
         this.health = this.healthMax;
         this.drawSize = size;
         this.drawOffset = vec2(0,this.size.y);
     }
 
-    update() {
-        super.update();
-
-        if(this.health < 1) {
-            this.bawksExplodeSound.play();
-            this.destroy();
-        }
-    }
-
     render() {
         if(player != null && isOverlapping(player.pos, player.size, this.pos.add(vec2(0, this.size.y+this.size.y/2)), this.drawSize)) {
             this.renderOrder = 2;
             if(this.health/this.healthMax <= 0.5) {
-                this.color = rgb(this.boxColor.r, this.boxColor.g, this.boxColor.b, this.health/this.healthMax);
+                this.color = rgb(this.color.r, this.color.g, this.color.b, this.health/this.healthMax);
             } else {
-                this.color = rgb(this.boxColor.r, this.boxColor.g, this.boxColor.b, this.health/this.healthMax/2);
+                this.color = rgb(this.color.r, this.color.g, this.color.b, this.health/this.healthMax/2);
             }
         } else {
             this.renderOrder = 0;
-            this.color = rgb(this.boxColor.r, this.boxColor.g, this.boxColor.b, this.health/this.healthMax);
+            this.color = rgb(this.color.r, this.color.g, this.color.b, this.health/this.healthMax);
         }
 
         drawRect(this.pos.add(vec2(0, this.size.y+this.size.y/2)), this.drawSize, this.color);
 
         if(this.boxColor != null)
-            drawRect(this.pos.add(vec2(0,-(this.size.y*1.5))), this.drawSize.add(vec2(0,-this.size.y*2)), rgb(this.boxColor.r, this.boxColor.g, this.boxColor.b, this.health/this.healthMax/4));
+            drawRect(this.pos.add(vec2(0,-(this.size.y*1.5))), this.drawSize.add(vec2(0,-this.size.y*2)), rgb(this.boxColor.r, this.boxColor.g, this.boxColor.b, this.boxColor.a/4));
     }
 
     takeDamage(damage) {
         this.health -= damage;
-    }
 
-    destroy() {
-        for (let i=0;i<boxes.length;i++) {
-            if(boxes[i].id == this.id) {
-                boxes.splice(i, 1);
-            }
+        if(this.health < 1) {
+            this.bawksExplodeSound.play();
+            this.destroy();
+        } else {
+            this.color = rgb(this.color.r, this.color.g, this.color.b, this.health/this.healthMax);
         }
 
-        super.destroy();
     }
 }
 
@@ -1089,7 +1239,7 @@ class Portal extends EngineObject {
         this.renderOrder = 2;
 
         this.tileInfo = spriteAtlas.portal;
-        this.portalSound = new Sound([2.8,,113,.35,.38,.001,,3.4,,,-483,.02,.04,,1,,.17,.68,.05,.03,-1045]);
+        this.portalSound = new Sound([2.8,,113,.35,.38,.001,,3.4,,,-483,.02,.04,,1,,.17,.68,.05,.03,-1045]); // Random 216 - Mutation 6
     }
 
     update() {
@@ -1106,19 +1256,27 @@ class Portal extends EngineObject {
                 win = true;
                 player.destroy();
             } else {
-                player.currentLevel += 1;
-                dieAndLoad();
+                engineObjectsDestroy();
+                loadLevel();
             }
 
         }
     }
 }
 
+function getRandomColorLeft() {
+    let rainbowColors = [RED, ORANGE, YELLOW, GREEN, BLUE, INDIGO, VIOLET];
+    let playerCollectedColors = player.colorsCollected;
+    let remainingColors = rainbowColors.filter(item => !playerCollectedColors.some(removeItem => item.r === removeItem.r && item.g === removeItem.g && item.b === removeItem.b));
+    
+    return remainingColors[randInt(0,remainingColors.length)];
+}
+
 class RainbowColor extends EngineObject {
     constructor(pos, pick)
     {
         super(pos, vec2(3), null, 0, pick);
-        this.setCollision();
+        this.setCollision(); // make object collide
         this.renderOrder = 2;
         this.color = pick;
         this.colorValue = pick;
@@ -1130,15 +1288,12 @@ class RainbowColor extends EngineObject {
         if (object instanceof Player) {
             object.collectColor(this.colorValue);
             play_sound("color_collect");
-            levelColorCollected = true;
-            rainbowColors.pop();
             this.destroy();
-            popMessage(colorMsgs[player.colorsCollected.length-1]);
         }   
     }
 }
 
-function loadLevel(leveNumber) {
+function loadLevel() {
     play_music("track1");
 
     if(player.lastColorCollected) {
@@ -1149,15 +1304,16 @@ function loadLevel(leveNumber) {
     player.reloading = false;
 
     // setup level
-    const levelSize = vec2(38, 250);    // size of play area
+    const levelSize = vec2(38, 500);    // size of play area
     cameraPos = levelSize.scale(.5);   // center camera in level
     canvasFixedSize = vec2(1280, 720); // use a 720p fixed size canvas
 
     const w = levelSize.x, h = levelSize.y;
+    //new Floor(vec2(w/2, 249.5), vec2(w, 500), rgb(1,1,1,1)); // floor
 
-    if(player.colorsCollected.length > 1) {
+    if(player.colorsCollected.length > 0) {
         const pos = vec2(0, 0);
-        const tileLayer = new TileLayer(pos, vec2(w, h-1));
+        const tileLayer = new TileLayer(pos, vec2(38, 500));
 
         for (pos.x = tileLayer.size.x; pos.x--;)
         for (pos.y = tileLayer.size.y; pos.y--;)
@@ -1170,23 +1326,25 @@ function loadLevel(leveNumber) {
             const tileIndex = 96;
             const direction = 0;
             const mirror = randBool();
-            const color = rgb(.5,player.currentLevel/7,player.currentLevel/14);
+            const color = GREEN;
             const data = new TileLayerData(tileIndex, direction, mirror, color);
             tileLayer.setData(pos, data);
+            //tileLayer.setCollisionData(pos);
         }
         tileLayer.tileInfo = spriteAtlas.grass
-        tileLayer.redraw();
+        tileLayer.redraw(); // redraw tile layer with new data
     }
 
-    new PhysicsObject(vec2(0-.5, levelSize.y/2-.5),  vec2(1, levelSize.y)); // left wall
-    new PhysicsObject(vec2(w+.5, levelSize.y/2-.5), vec2(1, levelSize.y)); // right wall
+    new PhysicsObject(vec2(0-.5, 249.5),  vec2(1, 500)); // left wall
+    new PhysicsObject(vec2(w+.5, 249.5), vec2(1, 500)); // right wall
     new PhysicsObject(vec2(w/2, 0), vec2(38, 1)); // bottom wall
-    new PhysicsObject(vec2(w/2, levelSize.y-1), vec2(38, 1)); // top wall
+    new PhysicsObject(vec2(w/2, 499), vec2(38, 1)); // top wall
 
+    randomColorLeft = getRandomColorLeft();
     let colorsArray = [];
 
     // create collision objects
-    for (let i=100; i--;)
+    for (let i=200; i--;)
     {
         let size = vec2(0);
         let pos = vec2(0);
@@ -1196,7 +1354,7 @@ function loadLevel(leveNumber) {
         {
             spawnRedo = false;
             size = vec2(rand(1,6),rand(1,6));
-            pos = vec2(randInt(0+(size.x/2), levelSize.x-(size.x/2)), randInt(0+(size.y/2)+6, levelSize.y-(size.y/2)-12));
+            pos = vec2(randInt(0+(size.x/2), levelSize.x-(size.x/2)), randInt(0+(size.y/2)+6, levelSize.y-(size.y/2)-6));
 
             for(let j=0; j < engineObjects.length; j++) {
                 if(isOverlapping(pos, size, engineObjects[j].pos, engineObjects[j].size) && engineObjects[j].collideSolidObjects) {
@@ -1210,8 +1368,8 @@ function loadLevel(leveNumber) {
         player.colorsCollected.forEach((c) => {
             colorsArray.push(c);
         })
-        
-        colorsArray.push(rainbowColors[rainbowColors.length-1]);
+        //colorsArray = player.colorsCollected;
+        colorsArray.push(randomColorLeft);
         let collectedLength = colorsArray.length
         if (collectedLength > 0) {
             if(rand() < collectedLength/7 ) {
@@ -1220,63 +1378,27 @@ function loadLevel(leveNumber) {
         }
 
         const o = new Box(pos, size, 0, 0, color);
-        o.setCollision();
-        o.mass = 0;
-
-        boxes.push(o);
+        o.setCollision(); // make object collide
+        o.mass = 0; // make object have static physics
     }
 
     // create random rainbow color to collect
     if (player.colorsCollected.length < 7) {
-        let size = vec2(0);
-        let pos = vec2(0);
-        let spawnRedo = true;
+        let rainbowColors = [RED, ORANGE, YELLOW, GREEN, BLUE, INDIGO, VIOLET];
+        let playerCollectedColors = player.colorsCollected;
+        let remainingColors = rainbowColors.filter(item => !playerCollectedColors.some(removeItem => item.r === removeItem.r && item.g === removeItem.g && item.b === removeItem.b && item.a === removeItem.a));
+        remainingColors.push(randomColorLeft);
 
-        do 
-        {
-            spawnRedo = false;
-            size = vec2(3);
-            pos = vec2(randInt(6, levelSize.x-6), randInt(levelSize.y/2, levelSize.y-10));
-
-            for(let j=0; j < engineObjects.length; j++) {
-                if(isOverlapping(pos, size, engineObjects[j].pos, engineObjects[j].size) && engineObjects[j].collideSolidObjects) {
-                    spawnRedo = true;
-                }
-            }
-        } while (spawnRedo)
-
-        //new RainbowColor(vec2(19, 20), rainbowColors[rainbowColors.length-1]);
-        new RainbowColor(pos, rainbowColors[rainbowColors.length-1]);
-    }
-
-    // create portal to end level
-    //new Portal(vec2(19, 30), BLUE);
-    new Portal(vec2(19, levelSize.y-10), BLUE);
-    
-    player.pos = vec2(19, 3);
-
-    cameraPos = player.pos.add(vec2(0,-5));
-
-    // create enemies
-    if(player.currentLevel > 1) {
-        for (let i=20; i--;)
-        {
+        if (remainingColors.length > 0) {
             let size = vec2(0);
             let pos = vec2(0);
             let spawnRedo = true;
-            let r = rand();
 
             do 
             {
                 spawnRedo = false;
-
-                if (r > .2) {
-                    size = vec2(1.5);
-                } else {
-                    size = vec2(1);
-                }
-
-                pos = vec2(randInt(0+(size.x), levelSize.x-(size.x)), randInt(30, levelSize.y-(size.y)-6));
+                size = vec2(3);
+                pos = vec2(randInt(6, levelSize.x-6), randInt(25, 49));
 
                 for(let j=0; j < engineObjects.length; j++) {
                     if(isOverlapping(pos, size, engineObjects[j].pos, engineObjects[j].size) && engineObjects[j].collideSolidObjects) {
@@ -1284,27 +1406,62 @@ function loadLevel(leveNumber) {
                     }
                 }
             } while (spawnRedo)
-            
-            if (r > .2) {
-                if(r > .5) {
-                    new Seeker(pos, size, GRAY);
-                } else {
-                    if(player.currentLevel > 2)
-                        new Roamer(pos, size, MAGENTA);
-                }
-            } else {
-                if(player.currentLevel > 3)
-                    new TurtTurt(pos, size, rgb(0, .5, 0));
-            }
-            
+
+            new RainbowColor(pos, randomColorLeft);
         }
     }
+
+    // create portal to end level
+    new Portal(vec2(19, 49), BLUE);
     
+    player.pos = vec2(19, 3);
+
+    cameraPos = player.pos.add(vec2(0,-5));
+
+    // create enemies
+    for (let i=20; i--;)
+    {
+        let size = vec2(0);
+        let pos = vec2(0);
+        let spawnRedo = true;
+        let r = rand();
+
+        do 
+        {
+            spawnRedo = false;
+
+            if (r > .2) {
+                size = vec2(1.5);
+            } else {
+                size = vec2(1);
+            }
+
+            pos = vec2(randInt(0+(size.x), levelSize.x-(size.x)), randInt(30, levelSize.y-(size.y)-6));
+
+            for(let j=0; j < engineObjects.length; j++) {
+                if(isOverlapping(pos, size, engineObjects[j].pos, engineObjects[j].size) && engineObjects[j].collideSolidObjects) {
+                    spawnRedo = true;
+                }
+            }
+        } while (spawnRedo)
+        
+        if (r > .2) {
+            if(r > .5) {
+                new Seeker(pos, size, GRAY);
+            } else {
+                new Roamer(pos, size, MAGENTA);
+            }
+        } else {
+            new TurtTurt(pos, size, rgb(0, .5, 0));
+        }
+        
+    }
 }
 
 function gameInit() {
     canvasFixedSize = vec2(lowResSize);
 
+    // create a table of all sprites
     spriteAtlas =
     {
         player:  tile(0,16),
@@ -1315,9 +1472,9 @@ function gameInit() {
         shadow: tile(80,16),
         grass: tile(96,16),
         seeker: tile(112,16),
-        shield: tile(128,16),
-        charge: tile(144,16),
     };
+
+    
 }
 
 function gameUpdate() {
@@ -1327,7 +1484,7 @@ function gameUpdate() {
                 inputClear();
                 gameStarted = true;
                 player = new Player(vec2(19, 3));
-                loadLevel(player.currentLevel);
+                loadLevel();
             }
         }
 
@@ -1335,6 +1492,7 @@ function gameUpdate() {
             if(keyWasPressed('Space') || gamepadWasPressed(0) || mouseWasPressed(0)) {
                 inputClear();
                 intro = false;
+                //play_music("title");
             }
         }
 
@@ -1349,89 +1507,44 @@ function gameUpdate() {
                 gameStarted = false;
                 play_music("title");
                 canvasFixedSize = vec2(lowResSize);
-                rainbowColors = [VIOLET,INDIGO,YELLOW,RED,BLUE,ORANGE,GREEN];
-                levelColorCollected = false;
             }
         }
 
         if(gameStarted && !gameEnded) {
             if ((keyWasPressed('KeyL') || gamepadWasPressed(1)) && gameStarted) {
-                dieAndLoad();
+                engineObjectsDestroy();
+                loadLevel();
             }
         }
 
-        if (keyWasPressed('KeyM'))
+        if (keyWasPressed('KeyM')) {
             toggle_music();
+        }
     }
-}
 
-function dieAndLoad() {
-    engineObjectsDestroy();
-    loadLevel(player.currentLevel);
 }
-
 function gameUpdatePost() {
     if(gameStarted && !gameEnded) {
         if((keyWasPressed('KeyP') || gamepadWasPressed(9)) && gameStarted) {
             paused = !paused;
         }
-
-        if(curTut < tuts.length && tutTimer.elapsed()) {
-            tutTimer.unset();
-            popMessage(tutsMsgs[curTut]);
-        }
-
-        if(popMsg && (mouseWasPressed(0) || keyWasPressed('Space') || gamepadWasPressed(0))) {
-            inputClear();
-            tutTimer.set(tutTime);
-            popMsg = false;
-            msg = '';
-            paused = false;
-
-            if (curTut < tuts.length) {
-                for(let t in tuts) {
-                    tuts[t] = false;
-                }
-
-                curTut++;
-
-                if(curTut < tuts.length) {
-                    tuts[curTut] = true;
-                }
-
-            }
-        }
-
-        
     }
 }
-
-function popMessage(m) {
-    popMsg = true;
-    msg = m;
-    paused = true;
-}
-
-
 function gameRender() {
     if(gameStarted) {
-        let c = WHITE;
-        if(player != null && player.colorsCollected.length > 1)
-            c = rgb(0,.8,0);
-        drawRect(vec2(19, 125), vec2(38, 249), c, 0, false);
+        drawRect(vec2(19, 250), vec2(38, 500), WHITE, 0, false);
     }
 }
-
 function gameRenderPost() {
     if(paused) {
-        if(popMsg) {
-            drawRect(cameraPos, vec2(100, 10), rgb(0,0,0,0.5));
-            drawTextScreen(msg + '\n\nLeft click, press bottom face button, or press Space', mainCanvasSize.scale(.5), 40);
-        } else {
-            drawRect(cameraPos, canvasFixedSize, rgb(0,0,0,0.6));
-            drawTextScreen('PAUSED', mainCanvasSize.scale(.5), 80);
-        }
+        drawRect(cameraPos, canvasFixedSize, rgb(0,0,0,0.6));
+        drawTextScreen('PAUSED', mainCanvasSize.scale(.5), 80);
     } else {
+        if(intro && !gameStarted) {
+            drawRect(vec2(0,0), vec2(100, 100), BLACK);
+            drawTextScreen('A presentation by Raptor and Noah Zark\nLeft click, press bottom face button, or press Space to start!', mainCanvasSize.scale(.5), 40);
+        }
+
         if(!intro && !gameStarted) {
             drawRect(vec2(0,0), vec2(100, 100), BLACK);
             const origin = -3.25;
@@ -1465,21 +1578,20 @@ function gameRenderPost() {
             drawTextScreen('Health: ' + player.health + '/' + player.healthMax, vec2(87, 20), 25, GREEN);
             drawTextScreen('Bullets Loaded: ' + player.roundsLoaded + '/' + player.roundsMax, vec2(133, 50), 25, RED);
 
-            if(player != null && player.colorsCollected.length > 0) {
-                drawRect(vec2(130, 90), vec2(240, 30), WHITE, 0, true, true);
+            if(player.colorsCollected.length > 0) {
+                drawRect(vec2(130, 90), vec2(225, 30), WHITE, 0, true, true);
             }
             
-            let s = 43;
+            let startX = 45;
             for(let i=0;i<player.colorsCollected.length;i++) {
-                if(i == player.colorPowerSelected)
-                    drawRect(vec2(s, 90), vec2(30), GRAY, 0, true, true);
-                drawRect(vec2(s, 90), vec2(25), player.colorsCollected[i], 0, true, true);
+                drawRect(vec2(startX, 90), vec2(25), player.colorsCollected[i], 0, true, true);
                 let usage = player.colorPowerUsage[i];
-                let uCol = BLACK;
-                if(usage == 0)
-                    uCol = RED;
-                drawTextScreen(usage, vec2(s, 90), 15, uCol);
-                s += 32;
+                let usageColor = BLACK;
+                if(usage == 0) {
+                    usageColor = RED;
+                }
+                drawTextScreen(usage, vec2(startX, 90), 15, usageColor);
+                startX += 32;
             }
         }
     }
