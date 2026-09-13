@@ -261,14 +261,14 @@ class Player extends EngineObject {
                 this.colorTimer.set(5);
             }
             if(col == YELLOW) {
-                this.yellowTimer.set(10);
+                this.colorTimer.set(3);
             }
             if(col == BLUE) {
-                this.blueTimer.set(3);
+                this.colorTimer.set(3);
                 this.chargeShot = false;
             }
             if(col == INDIGO) {
-                this.indigoTimer.set(5);
+                this.colorTimer.set(5);
 
                 for (let i=0;i<enemies.length;i++) {
                     if(enemies[i].pos.distance(player.pos) < this.indigoDistance) {
@@ -391,11 +391,13 @@ class Player extends EngineObject {
 
             if(this.colorTimer.elapsed()) {
                 this.colorTimer.unset();
-                this.timerColor = '';
+                
                 this.playerColor = this.playerColorDefault;
 
                 if (this.timerColor == BLUE) 
                     player.chargeShot = true;
+
+                this.timerColor = '';
             }
         }
 
@@ -425,7 +427,7 @@ class Player extends EngineObject {
     shoot() {
         // check if we have a round to shoot or not
         if (this.roundsLoaded > 0) {
-            if (!this.shootTimer.isSet() && !this.colorTimer.isSet() && this.timerColor != ORANGE) {
+            if (!this.shootTimer.isSet() && this.timerColor != ORANGE) {
                 // calculate trajectory
                 let tra = vec2(0);
 
@@ -1234,13 +1236,13 @@ function loadLevel(leveNumber) {
             }
         } while (spawnRedo)
 
-        //new RainbowColor(vec2(19, 20), rainbowColors[rainbowColors.length-1]);
-        new RainbowColor(pos, rainbowColors[rainbowColors.length-1]);
+        new RainbowColor(vec2(19, 20), rainbowColors[rainbowColors.length-1]);
+        //new RainbowColor(pos, rainbowColors[rainbowColors.length-1]);
     }
 
     // create portal to end level
-    //new Portal(vec2(19, 30), BLUE);
-    new Portal(vec2(19, levelSize.y-10), BLUE);
+    new Portal(vec2(19, 30), BLUE);
+    //new Portal(vec2(19, levelSize.y-10), BLUE);
     
     player.pos = vec2(19, 3);
 
